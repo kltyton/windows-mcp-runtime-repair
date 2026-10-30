@@ -1,0 +1,87 @@
+name: Publish matching Windows runtime
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+    inputs:
+      backend_version:
+        description: Exact upstream backend version, or blank for the current official desktop package
+        required: false
+permissions:
+  contents: write
+concurrency:
+  group: runtime-catalog
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: windows-latest
+    timeout-minutes: 180
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REQUESTED_VERSION: ${{ inputs.backend_version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Discover exact runtime
+        id: target
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $catalog = Get-Content runtime-catalog.json -Raw | ConvertFrom-Json
+          $version = $env:REQUESTED_VERSION
+          $packageVersion = ''
+          if (!$version) {
+            $head = Invoke-WebRequest -Method Head -Uri 'https://persistent.oaistatic.com/codex-app-prod/ChatGPT-x64.msix'
+            $header = [string]($head.Headers['x-ms-meta-package_version'] | Select-Object -First 1)
+            if ($header -and $header -eq $catalog.desktop_package_version) { 'needed=false' >> $env:GITHUB_OUTPUT; exit 0 }
+            $desktop = & ./tools/upstream/Get-DesktopPackage.ps1 -WorkingDirectory "$env:RUNNER_TEMP/desktop-metadata"
+            $version = $desktop.backend_version
+            $packageVersion = $desktop.package_version
+          }
+          [void][System.Management.Automation.SemanticVersion]::new($version)
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "package_version=$packageVersion" >> $env:GITHUB_OUTPUT
+          if (@($catalog.runtimes | Where-Object backend_version -eq $version).Count) { 'needed=false' >> $env:GITHUB_OUTPUT }
+          else { 'needed=true' >> $env:GITHUB_OUTPUT }
+      - name: Build and qualify new source
+        if: steps.target.outputs.needed == 'true'
+        shell: pwsh
+        env:
+          BACKEND_VERSION: ${{ steps.target.outputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $result = & ./tools/upstream/Build-PatchedRuntime.ps1 -BackendVersion $env:BACKEND_VERSION -WorkingDirectory "$env:RUNNER_TEMP/upstream-build" -OutputDirectory "$env:RUNNER_TEMP/payload"
+          $result | ConvertTo-Json -Depth 6 | Set-Content "$env:RUNNER_TEMP/runtime-record.json" -Encoding utf8
+      - name: Publish payload and catalog
+        if: steps.target.outputs.version != ''
+        shell: pwsh
+        env:
+          BACKEND_VERSION: ${{ steps.target.outputs.version }}
+          DESKTOP_PACKAGE_VERSION: ${{ steps.target.outputs.package_version }}
+          PAYLOAD_NEEDED: ${{ steps.target.outputs.needed }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $catalog = Get-Content runtime-catalog.json -Raw | ConvertFrom-Json -AsHashtable
+          if ($env:PAYLOAD_NEEDED -eq 'true') {
+            $record = Get-Content "$env:RUNNER_TEMP/runtime-record.json" -Raw | ConvertFrom-Json -AsHashtable
+            gh release create "backend-v$env:BACKEND_VERSION" "$env:RUNNER_TEMP/payload/windows-runtime-$env:BACKEND_VERSION.zip" --title "Windows runtime $env:BACKEND_VERSION" --notes 'Windows overlapped MCP stdio with preserved process lifecycle and response transport handling. Includes the upstream license and notices.'
+            if ($LASTEXITCODE -ne 0) { throw 'Could not publish runtime payload.' }
+            $catalog.runtimes += $record
+          }
+          if ($env:DESKTOP_PACKAGE_VERSION) { $catalog.desktop_package_version = $env:DESKTOP_PACKAGE_VERSION }
+          $catalog | ConvertTo-Json -Depth 8 | Set-Content runtime-catalog.json -Encoding utf8
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add runtime-catalog.json
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 1) {
+            git commit -m "Publish Windows runtime $env:BACKEND_VERSION"
+            if ($LASTEXITCODE -ne 0) { throw 'Could not commit the runtime catalog.' }
+            git push origin HEAD:main
+            if ($LASTEXITCODE -ne 0) { throw 'Could not publish the runtime catalog.' }
+          }

@@ -1,0 +1,4 @@
+Package: winsplit
+Version: 0.1.0
+Declared license: MIT OR Apache-2.0
+Selected license: Apache-2.0

@@ -1,0 +1,811 @@
+diff --git a/codex-rs/cli/src/doctor.rs b/codex-rs/cli/src/doctor.rs
+index 7b80c10..fad6728 100644
+--- a/codex-rs/cli/src/doctor.rs
++++ b/codex-rs/cli/src/doctor.rs
+@@ -2438,7 +2438,8 @@ fn websocket_error_detail(err: &ApiError) -> String {
+             format!("handshake API error: {status} {message}")
+         }
+         ApiError::Stream(message) => format!("handshake stream error: {message}"),
+-        ApiError::ContentFilter
++        ApiError::WebsocketMessageTooLarge
++        | ApiError::ContentFilter
+         | ApiError::ResponseIncomplete(_)
+         | ApiError::ContextWindowExceeded
+         | ApiError::QuotaExceeded
+diff --git a/codex-rs/codex-api/src/api_bridge.rs b/codex-rs/codex-api/src/api_bridge.rs
+index 40bd666..313258c 100644
+--- a/codex-rs/codex-api/src/api_bridge.rs
++++ b/codex-rs/codex-api/src/api_bridge.rs
+@@ -28,6 +28,7 @@ pub fn map_api_error(err: ApiError) -> CodexErr {
+         ApiError::Transport(_)
+         | ApiError::Api { .. }
+         | ApiError::Stream(_)
++        | ApiError::WebsocketMessageTooLarge
+         | ApiError::ContentFilter
+         | ApiError::ResponseIncomplete(_)
+         | ApiError::ContextWindowExceeded
+@@ -59,6 +60,9 @@ fn map_api_error_details(err: ApiError) -> CodexErr {
+             CodexErr::new(CodexErrorDetails::RateLimitExceeded(message))
+         }
+         ApiError::Stream(msg) => CodexErr::Stream(msg),
++        ApiError::WebsocketMessageTooLarge => {
++            CodexErr::new(CodexErrorDetails::WebsocketMessageTooLarge)
++        }
+         ApiError::ContentFilter => CodexErr::new(CodexErrorDetails::ContentFilter),
+         ApiError::ResponseIncomplete(incomplete) => {
+             CodexErr::new(CodexErrorDetails::ResponseIncomplete(incomplete))
+diff --git a/codex-rs/codex-api/src/endpoint/responses_websocket.rs b/codex-rs/codex-api/src/endpoint/responses_websocket.rs
+index c59683d..e477089 100644
+--- a/codex-rs/codex-api/src/endpoint/responses_websocket.rs
++++ b/codex-rs/codex-api/src/endpoint/responses_websocket.rs
+@@ -38,6 +38,7 @@ use tokio_tungstenite::tungstenite::Error as WsError;
+ use tokio_tungstenite::tungstenite::Message;
+ use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+ use tokio_tungstenite::tungstenite::protocol::CloseFrame;
++use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
+ use tracing::Instrument;
+ use tracing::Span;
+ use tracing::debug;
+@@ -130,20 +131,22 @@ impl WsStream {
+     async fn request(
+         &mut self,
+         make_command: impl FnOnce(oneshot::Sender<Result<(), WsError>>) -> WsCommand,
+-    ) -> Result<(), WsError> {
++    ) -> Result<(), ApiError> {
+         let (tx_result, rx_result) = oneshot::channel();
+         if self.tx_command.send(make_command(tx_result)).await.is_ok()
+             && let Ok(result) = rx_result.await
+         {
+-            return result;
++            return result.map_err(map_ws_stream_error);
+         }
+         while let Some(message) = self.rx_message.recv().await {
+-            message?;
++            if let Message::Close(frame) = message.map_err(map_ws_stream_error)? {
++                return Err(map_websocket_close(frame));
++            }
+         }
+-        Err(WsError::ConnectionClosed)
++        Err(map_ws_stream_error(WsError::ConnectionClosed))
+     }
+ 
+-    async fn send(&mut self, message: Message) -> Result<(), WsError> {
++    async fn send(&mut self, message: Message) -> Result<(), ApiError> {
+         self.request(|tx_result| WsCommand::Send { message, tx_result })
+             .await
+     }
+@@ -942,10 +945,8 @@ async fn run_websocket_response_stream(
+             Message::Binary(_) => {
+                 return Err(ApiError::Stream("unexpected binary websocket event".into()));
+             }
+-            Message::Close(_) => {
+-                return Err(ApiError::Stream(
+-                    "websocket closed by server before response.completed".into(),
+-                ));
++            Message::Close(frame) => {
++                return Err(map_websocket_close(frame));
+             }
+             Message::Frame(_) => {}
+             Message::Ping(_) | Message::Pong(_) => {}
+@@ -955,6 +956,18 @@ async fn run_websocket_response_stream(
+     Ok(())
+ }
+ 
++fn map_websocket_close(frame: Option<CloseFrame>) -> ApiError {
++    match frame {
++        Some(CloseFrame {
++            code: CloseCode::Size,
++            ..
++        }) => ApiError::WebsocketMessageTooLarge,
++        Some(_) | None => {
++            ApiError::Stream("websocket closed by server before response.completed".into())
++        }
++    }
++}
++
+ fn emit_responses_websocket_timing_event(
+     kind: &str,
+     payload: &str,
+@@ -1010,8 +1023,11 @@ async fn send_websocket_request(
+         ws_stream.send(Message::Text(request_text.into())),
+     )
+     .await
+-    .map_err(|_| ApiError::Stream("idle timeout sending websocket request".into()))
+-    .and_then(|result| result.map_err(map_ws_stream_error));
++    .unwrap_or_else(|_| {
++        Err(ApiError::Stream(
++            "idle timeout sending websocket request".into(),
++        ))
++    });
+ 
+     if let Some(t) = telemetry.as_ref() {
+         t.on_ws_request(
+diff --git a/codex-rs/codex-api/src/error.rs b/codex-rs/codex-api/src/error.rs
+index 71524b1..849957e 100644
+--- a/codex-rs/codex-api/src/error.rs
++++ b/codex-rs/codex-api/src/error.rs
+@@ -15,6 +15,8 @@ pub enum ApiError {
+     Api { status: StatusCode, message: String },
+     #[error("stream error: {0}")]
+     Stream(String),
++    #[error("websocket message too large (close code 1009)")]
++    WebsocketMessageTooLarge,
+     #[error("stream error: Incomplete response returned, reason: content_filter")]
+     ContentFilter,
+     #[error(transparent)]
+diff --git a/codex-rs/core/src/responses_retry.rs b/codex-rs/core/src/responses_retry.rs
+index 048a68b..769d187 100644
+--- a/codex-rs/core/src/responses_retry.rs
++++ b/codex-rs/core/src/responses_retry.rs
+@@ -85,9 +85,12 @@ pub(crate) async fn handle_response_stream_error(
+         ResponsesStreamRequest::RemoteCompactionV2 => RetryOperation::RemoteCompactionV2,
+     };
+     let retry_count = retry_state.retries.saturating_add(1);
+-    let Some(delay) = err.retry_delay(retry_count) else {
++    let websocket_message_too_large =
++        matches!(err.details(), CodexErrorDetails::WebsocketMessageTooLarge);
++    let delay = err.retry_delay(retry_count);
++    if delay.is_none() && !websocket_message_too_large {
+         return Err(err);
+-    };
++    }
+     let retry_after = err.retry_after();
+ 
+     if turn_context
+@@ -117,7 +120,7 @@ pub(crate) async fn handle_response_stream_error(
+         return Ok(());
+     }
+ 
+-    if retry_state.retries >= max_retries
++    if (websocket_message_too_large || retry_state.retries >= max_retries)
+         && client_session.try_switch_fallback_transport(
+             &turn_context.session_telemetry,
+             turn_context.model_info(),
+@@ -138,6 +141,10 @@ pub(crate) async fn handle_response_stream_error(
+         return Ok(());
+     }
+ 
++    let Some(delay) = delay else {
++        return Err(err);
++    };
++
+     if retry_state.retries < max_retries {
+         retry_state.retries = retry_count;
+         log_retry(request, turn_context, &err, retry_count, max_retries, delay);
+diff --git a/codex-rs/core/src/responses_retry_tests.rs b/codex-rs/core/src/responses_retry_tests.rs
+index 65aa293..52646e0 100644
+--- a/codex-rs/core/src/responses_retry_tests.rs
++++ b/codex-rs/core/src/responses_retry_tests.rs
+@@ -5,14 +5,45 @@ use super::log_retry;
+ use crate::realtime_history::RealtimeHistoryState;
+ use crate::session::step_context::StepContext;
+ use crate::session::tests::make_session_and_context;
++use crate::session::tests::make_session_and_context_with_auth_and_config_and_rx;
+ use codex_http_client::RetryAfter;
++use codex_login::CodexAuth;
+ use codex_protocol::error::CodexErr;
++use codex_protocol::error::CodexErrorDetails;
+ use std::sync::Arc;
+ use std::time::Duration;
+ use tokio::sync::Mutex;
+ use tokio::time::Instant;
+ use tracing_test::internal::MockWriter;
+ 
++#[tokio::test]
++async fn websocket_message_too_large_switches_transport_before_retry_budget_is_spent() {
++    let (session, turn_context, _events) = make_session_and_context_with_auth_and_config_and_rx(
++        CodexAuth::create_dummy_chatgpt_auth_for_testing(),
++        Vec::new(),
++        |config| config.model_provider.supports_websockets = true,
++    )
++    .await;
++    let step_context = StepContext::for_test(turn_context);
++    let mut client_session = session.services.model_client.new_session();
++    let mut retry_state = ResponsesStreamRetryState::default();
++
++    let result = handle_response_stream_error(
++        &mut retry_state,
++        /*max_retries*/ 5,
++        CodexErr::new(CodexErrorDetails::WebsocketMessageTooLarge),
++        &mut client_session,
++        &session,
++        &step_context,
++        ResponsesStreamRequest::Sampling,
++    )
++    .await;
++
++    result.expect("oversized websocket request should continue over HTTP");
++    assert!(!session.services.model_client.responses_websocket_enabled());
++    assert_eq!(retry_state.retries, 0);
++}
++
+ #[tokio::test]
+ async fn sampling_retry_logs_stream_error_context() {
+     let (_session, turn_context) = make_session_and_context().await;
+diff --git a/codex-rs/ext/guardian-v2/src/async_scorer/metrics.rs b/codex-rs/ext/guardian-v2/src/async_scorer/metrics.rs
+index 07cd79f..254d024 100644
+--- a/codex-rs/ext/guardian-v2/src/async_scorer/metrics.rs
++++ b/codex-rs/ext/guardian-v2/src/async_scorer/metrics.rs
+@@ -46,7 +46,9 @@ pub(super) fn sampler_failure_reason(error: &LunaSamplerError) -> &'static str {
+             ApiError::Transport(TransportError::Build(_)) => "request_build_error",
+             ApiError::Transport(TransportError::ResponseTooLarge { .. }) => "response_too_large",
+             ApiError::Transport(TransportError::Policy(_)) => "network_policy_denied",
+-            ApiError::Stream(_) | ApiError::ContentFilter => "stream_error",
++            ApiError::Stream(_) | ApiError::WebsocketMessageTooLarge | ApiError::ContentFilter => {
++                "stream_error"
++            }
+             ApiError::ResponseIncomplete(_) => "incomplete_response",
+             ApiError::ContextWindowExceeded => "context_window_exceeded",
+             ApiError::QuotaExceeded => "quota_exceeded",
+diff --git a/codex-rs/ext/guardian-v2/src/async_scorer/sampler/execution.rs b/codex-rs/ext/guardian-v2/src/async_scorer/sampler/execution.rs
+index 8b8c6ba..32ce71e 100644
+--- a/codex-rs/ext/guardian-v2/src/async_scorer/sampler/execution.rs
++++ b/codex-rs/ext/guardian-v2/src/async_scorer/sampler/execution.rs
+@@ -142,6 +142,7 @@ impl SamplingExecution {
+                 ApiError::Retryable { .. }
+                 | ApiError::RateLimitExceeded { .. }
+                 | ApiError::Stream(_)
++                | ApiError::WebsocketMessageTooLarge
+                 | ApiError::ContentFilter
+                 | ApiError::ServerOverloaded { .. }
+                 | ApiError::FlexUnavailable,
+diff --git a/codex-rs/protocol/src/error.rs b/codex-rs/protocol/src/error.rs
+index 445fd56..d0df0b7 100644
+--- a/codex-rs/protocol/src/error.rs
++++ b/codex-rs/protocol/src/error.rs
+@@ -111,6 +111,8 @@ pub enum CodexErrorDetails {
+     /// The Session loop treats this as a transient error and will automatically retry the turn.
+     #[error("stream disconnected before completion: {0}")]
+     Stream(String),
++    #[error("websocket message too large (close code 1009)")]
++    WebsocketMessageTooLarge,
+     /// A response stopped by the content filter. Sampling retries need developer guidance.
+     #[error(
+         "stream disconnected before completion: Incomplete response returned, reason: content_filter"
+@@ -422,6 +424,7 @@ impl CodexErr {
+             | CodexErrorDetails::Interrupted
+             | CodexErrorDetails::EnvVar(_)
+             | CodexErrorDetails::Fatal(_)
++            | CodexErrorDetails::WebsocketMessageTooLarge
+             | CodexErrorDetails::UsageNotIncluded
+             | CodexErrorDetails::QuotaExceeded
+             | CodexErrorDetails::InvalidImageRequest()
+diff --git a/codex-rs/response-debug-context/src/lib.rs b/codex-rs/response-debug-context/src/lib.rs
+index 957fde6..ff7a653 100644
+--- a/codex-rs/response-debug-context/src/lib.rs
++++ b/codex-rs/response-debug-context/src/lib.rs
+@@ -75,6 +75,9 @@ pub fn telemetry_api_error_message(error: &ApiError) -> String {
+         ApiError::Transport(transport) => telemetry_transport_error_message(transport),
+         ApiError::Api { status, .. } => format!("api error {}", status.as_u16()),
+         ApiError::Stream(err) => err.to_string(),
++        ApiError::WebsocketMessageTooLarge => {
++            "websocket message too large (close code 1009)".to_string()
++        }
+         ApiError::ContentFilter => {
+             "Incomplete response returned, reason: content_filter".to_string()
+         }
+diff --git a/codex-rs/rmcp-client/Cargo.toml b/codex-rs/rmcp-client/Cargo.toml
+index 4702b0f..5cca4e1 100644
+--- a/codex-rs/rmcp-client/Cargo.toml
++++ b/codex-rs/rmcp-client/Cargo.toml
+@@ -55,6 +55,7 @@ tiny_http = { workspace = true }
+ tokio = { workspace = true, features = [
+     "io-util",
+     "macros",
++    "net",
+     "process",
+     "signal",
+     "rt-multi-thread",
+@@ -90,7 +91,13 @@ keyring = { workspace = true, features = ["apple-native"] }
+ 
+ [target.'cfg(target_os = "windows")'.dependencies]
+ keyring = { workspace = true, features = ["windows-native"] }
+-windows-sys = { workspace = true, features = ["Win32_Storage_FileSystem"] }
++uuid = { workspace = true, features = ["v4"] }
++windows-sys = { workspace = true, features = [
++    "Win32_Foundation",
++    "Win32_Security",
++    "Win32_Security_Authorization",
++    "Win32_Storage_FileSystem",
++] }
+ 
+ [target.'cfg(any(target_os = "freebsd", target_os = "openbsd"))'.dependencies]
+ keyring = { workspace = true, features = ["sync-secret-service"] }
+diff --git a/codex-rs/rmcp-client/src/bounded_stdio_transport.rs b/codex-rs/rmcp-client/src/bounded_stdio_transport.rs
+index fdde9f6..43479f9 100644
+--- a/codex-rs/rmcp-client/src/bounded_stdio_transport.rs
++++ b/codex-rs/rmcp-client/src/bounded_stdio_transport.rs
+@@ -12,24 +12,25 @@ use rmcp::transport::Transport;
+ use tokio::io::AsyncBufReadExt;
+ use tokio::io::AsyncWriteExt;
+ use tokio::io::BufReader;
+-use tokio::process::ChildStdin;
+-use tokio::process::ChildStdout;
+ use tokio::sync::Mutex;
+ use tracing::debug;
+ use tracing::warn;
+ 
++use crate::local_stdio_io::Stdin;
++use crate::local_stdio_io::Stdout;
++
+ /// Match the existing executor stdio transport and the production MCP limit.
+ pub(crate) const MAX_MCP_STDIO_LINE_BYTES: usize = 8 * 1024 * 1024;
+ 
+ pub(super) struct BoundedStdioTransport {
+-    stdin: Arc<Mutex<Option<ChildStdin>>>,
+-    stdout: BufReader<ChildStdout>,
++    stdin: Arc<Mutex<Option<Stdin>>>,
++    stdout: BufReader<Stdout>,
+     pending_line: Vec<u8>,
+     program_name: String,
+ }
+ 
+ impl BoundedStdioTransport {
+-    pub(super) fn new(stdin: ChildStdin, stdout: ChildStdout, program_name: String) -> Self {
++    pub(super) fn new(stdin: Stdin, stdout: Stdout, program_name: String) -> Self {
+         Self {
+             stdin: Arc::new(Mutex::new(Some(stdin))),
+             stdout: BufReader::new(stdout),
+diff --git a/codex-rs/rmcp-client/src/lib.rs b/codex-rs/rmcp-client/src/lib.rs
+index a46b300..8abce70 100644
+--- a/codex-rs/rmcp-client/src/lib.rs
++++ b/codex-rs/rmcp-client/src/lib.rs
+@@ -15,6 +15,7 @@ mod http_client_adapter;
+ mod http_client_redirect;
+ mod http_headers;
+ mod in_process_transport;
++mod local_stdio_io;
+ mod local_stdio_transport;
+ mod logging_client_handler;
+ mod oauth;
+diff --git a/codex-rs/rmcp-client/src/local_stdio_transport.rs b/codex-rs/rmcp-client/src/local_stdio_transport.rs
+index 381aad1..608f3a0 100644
+--- a/codex-rs/rmcp-client/src/local_stdio_transport.rs
++++ b/codex-rs/rmcp-client/src/local_stdio_transport.rs
+@@ -13,11 +13,13 @@ use rmcp::service::RxJsonRpcMessage;
+ use rmcp::service::TxJsonRpcMessage;
+ use rmcp::transport::Transport;
+ use rmcp::transport::async_rw::AsyncRwTransport;
+-use tokio::process::ChildStderr;
+-use tokio::process::ChildStdin;
+-use tokio::process::ChildStdout;
+ 
+ use crate::bounded_stdio_transport::BoundedStdioTransport;
++use crate::local_stdio_io;
++use crate::local_stdio_io::LocalStdio;
++use crate::local_stdio_io::Stderr;
++use crate::local_stdio_io::Stdin;
++use crate::local_stdio_io::Stdout;
+ use crate::protocol_mode::McpProtocolMode;
+ use codex_utils_pty::Child;
+ 
+@@ -28,7 +30,7 @@ pub(super) struct LocalStdioTransport {
+ 
+ enum StdioTransport {
+     /// Preserve rmcp's existing framing for servers using the initialize handshake.
+-    Legacy(AsyncRwTransport<RoleClient, ChildStdout, ChildStdin>),
++    Legacy(AsyncRwTransport<RoleClient, Stdout, Stdin>),
+     /// Bound frames and skip messages unknown to the client during 2026-07-28 discovery.
+     V20260728(BoundedStdioTransport),
+ }
+@@ -38,17 +40,13 @@ impl LocalStdioTransport {
+         command: Command,
+         program_name: String,
+         protocol_mode: McpProtocolMode,
+-    ) -> io::Result<(Self, Option<ChildStderr>)> {
+-        let mut child = command.spawn()?;
+-        let stdin = child
+-            .stdin
+-            .take()
+-            .ok_or_else(|| io::Error::other("MCP server stdin was not piped"))?;
+-        let stdout = child
+-            .stdout
+-            .take()
+-            .ok_or_else(|| io::Error::other("MCP server stdout was not piped"))?;
+-        let stderr = child.stderr.take();
++    ) -> io::Result<(Self, Option<Stderr>)> {
++        let LocalStdio {
++            child,
++            stdin,
++            stdout,
++            stderr,
++        } = local_stdio_io::spawn(command)?;
+         let transport = match protocol_mode {
+             McpProtocolMode::Legacy => StdioTransport::Legacy(AsyncRwTransport::new(stdout, stdin)),
+             McpProtocolMode::V20260728 => {
+@@ -100,3 +98,7 @@ impl Transport<RoleClient> for LocalStdioTransport {
+         }
+     }
+ }
++
++#[cfg(all(test, windows))]
++#[path = "local_stdio_io/windows_tests.rs"]
++mod windows_tests;
+diff --git a/codex-rs/rmcp-client/src/stdio_server_launcher.rs b/codex-rs/rmcp-client/src/stdio_server_launcher.rs
+index 92ccfa2..c1a1615 100644
+--- a/codex-rs/rmcp-client/src/stdio_server_launcher.rs
++++ b/codex-rs/rmcp-client/src/stdio_server_launcher.rs
+@@ -61,6 +61,7 @@ use tracing::info;
+ use tracing::warn;
+ 
+ use crate::executor_process_transport::ExecutorProcessTransport;
++use crate::local_stdio_io::Stderr;
+ use crate::local_stdio_transport::LocalStdioTransport;
+ use crate::program_resolver;
+ use crate::protocol_mode::McpProtocolMode;
+@@ -308,7 +309,7 @@ impl LocalStdioServerLauncher {
+ 
+         let spawn_transport = |command: Command| -> io::Result<(
+             StdioServerTransportInner,
+-            Option<tokio::process::ChildStderr>,
++            Option<Stderr>,
+             Option<u32>,
+         )> {
+             let (transport, stderr) =
+diff --git a/codex-rs/utils/pty/src/child_command.rs b/codex-rs/utils/pty/src/child_command.rs
+index 452e3ec..db1602e 100644
+--- a/codex-rs/utils/pty/src/child_command.rs
++++ b/codex-rs/utils/pty/src/child_command.rs
+@@ -67,6 +67,8 @@ pub enum ChildStdin {
+     Null,
+     #[cfg(unix)]
+     File(std::os::fd::OwnedFd),
++    #[cfg(windows)]
++    File(std::os::windows::io::OwnedHandle),
+ }
+ 
+ /// A local command whose complete launch contract is known to both backends.
+@@ -186,6 +188,20 @@ impl Command {
+         self
+     }
+ 
++    /// Supply the child endpoint of a Windows output pipe.
++    #[cfg(windows)]
++    pub fn stdout_handle(&mut self, handle: std::os::windows::io::OwnedHandle) -> &mut Self {
++        self.inner.stdout(TokioStdio::from(handle));
++        self
++    }
++
++    /// Supply the child endpoint of a Windows diagnostic pipe.
++    #[cfg(windows)]
++    pub fn stderr_handle(&mut self, handle: std::os::windows::io::OwnedHandle) -> &mut Self {
++        self.inner.stderr(TokioStdio::from(handle));
++        self
++    }
++
+     pub fn descriptor_policy(&mut self, policy: DescriptorPolicy) -> &mut Self {
+         self.descriptor_policy = policy;
+         self
+@@ -289,6 +305,8 @@ impl Command {
+             ChildStdin::Null => TokioStdio::null(),
+             #[cfg(unix)]
+             ChildStdin::File(fd) => TokioStdio::from(fd),
++            #[cfg(windows)]
++            ChildStdin::File(handle) => TokioStdio::from(handle),
+         });
+         #[cfg(unix)]
+         {
+diff --git a/codex-rs/rmcp-client/src/local_stdio_io/mod.rs b/codex-rs/rmcp-client/src/local_stdio_io/mod.rs
+new file mode 100644
+index 0000000..f689585
+--- /dev/null
++++ b/codex-rs/rmcp-client/src/local_stdio_io/mod.rs
+@@ -0,0 +1,63 @@
++//! Platform-specific pipe ownership beneath the shared MCP framing layer.
++
++use std::io;
++
++use codex_utils_pty::Child;
++use codex_utils_pty::Command;
++
++#[cfg(windows)]
++mod windows;
++
++#[cfg(windows)]
++pub(super) use windows::Stdin;
++#[cfg(windows)]
++pub(super) type Stdout = tokio::net::windows::named_pipe::NamedPipeServer;
++#[cfg(windows)]
++pub(super) type Stderr = tokio::net::windows::named_pipe::NamedPipeServer;
++
++#[cfg(not(windows))]
++pub(super) type Stdin = tokio::process::ChildStdin;
++#[cfg(not(windows))]
++pub(super) type Stdout = tokio::process::ChildStdout;
++#[cfg(not(windows))]
++pub(super) type Stderr = tokio::process::ChildStderr;
++
++pub(super) struct LocalStdio {
++    pub(super) child: Child,
++    pub(super) stdin: Stdin,
++    pub(super) stdout: Stdout,
++    pub(super) stderr: Option<Stderr>,
++}
++
++pub(super) fn spawn(command: Command) -> io::Result<LocalStdio> {
++    #[cfg(windows)]
++    {
++        let mut command = command;
++        let pipes = windows::Stdio::configure(&mut command)?;
++        Ok(LocalStdio {
++            child: command.spawn()?,
++            stdin: pipes.stdin,
++            stdout: pipes.stdout,
++            stderr: Some(pipes.stderr),
++        })
++    }
++    #[cfg(not(windows))]
++    {
++        let mut child = command.spawn()?;
++        let stdin = child
++            .stdin
++            .take()
++            .ok_or_else(|| io::Error::other("MCP server stdin was not piped"))?;
++        let stdout = child
++            .stdout
++            .take()
++            .ok_or_else(|| io::Error::other("MCP server stdout was not piped"))?;
++        let stderr = child.stderr.take();
++        Ok(LocalStdio {
++            child,
++            stdin,
++            stdout,
++            stderr,
++        })
++    }
++}
+diff --git a/codex-rs/rmcp-client/src/local_stdio_io/windows.rs b/codex-rs/rmcp-client/src/local_stdio_io/windows.rs
+new file mode 100644
+index 0000000..4c411fc
+--- /dev/null
++++ b/codex-rs/rmcp-client/src/local_stdio_io/windows.rs
+@@ -0,0 +1,171 @@
++//! IOCP-backed MCP pipes with private, preconnected child endpoints.
++
++use std::fs::File;
++use std::fs::OpenOptions;
++use std::io;
++use std::os::windows::fs::OpenOptionsExt;
++use std::pin::Pin;
++use std::ptr;
++use std::task::Context;
++use std::task::Poll;
++use std::task::ready;
++
++use codex_utils_pty::ChildStdin;
++use codex_utils_pty::Command;
++use tokio::io::AsyncWrite;
++use tokio::net::windows::named_pipe::NamedPipeServer;
++use tokio::net::windows::named_pipe::PipeMode;
++use tokio::net::windows::named_pipe::ServerOptions;
++use uuid::Uuid;
++use windows_sys::Win32::Foundation::LocalFree;
++use windows_sys::Win32::Security::Authorization::ConvertStringSecurityDescriptorToSecurityDescriptorW;
++use windows_sys::Win32::Security::Authorization::SDDL_REVISION_1;
++use windows_sys::Win32::Security::PSECURITY_DESCRIPTOR;
++use windows_sys::Win32::Security::SECURITY_ATTRIBUTES;
++use windows_sys::Win32::Storage::FileSystem::SECURITY_IDENTIFICATION;
++use windows_sys::Win32::Storage::FileSystem::SECURITY_SQOS_PRESENT;
++
++pub(super) struct Stdio {
++    pub(super) stdin: Stdin,
++    pub(super) stdout: NamedPipeServer,
++    pub(super) stderr: NamedPipeServer,
++}
++
++impl Stdio {
++    pub(super) fn configure(command: &mut Command) -> io::Result<Self> {
++        let security = PipeSecurity::new()?;
++        let (stdin, child_stdin) = connected_pipe(Direction::ChildReads, &security)?;
++        let (stdout, child_stdout) = connected_pipe(Direction::ChildWrites, &security)?;
++        let (stderr, child_stderr) = connected_pipe(Direction::ChildWrites, &security)?;
++        command
++            .stdin(ChildStdin::File(child_stdin.into()))
++            .stdout_handle(child_stdout.into())
++            .stderr_handle(child_stderr.into());
++        Ok(Self {
++            stdin: Stdin(Some(stdin)),
++            stdout,
++            stderr,
++        })
++    }
++}
++
++// NamedPipeServer::poll_shutdown only flushes; MCP shutdown must also deliver EOF.
++pub(crate) struct Stdin(Option<NamedPipeServer>);
++
++impl AsyncWrite for Stdin {
++    fn poll_write(
++        self: Pin<&mut Self>,
++        cx: &mut Context<'_>,
++        bytes: &[u8],
++    ) -> Poll<io::Result<usize>> {
++        match self.get_mut().0.as_mut() {
++            Some(pipe) => Pin::new(pipe).poll_write(cx, bytes),
++            None => Poll::Ready(Err(io::Error::new(
++                io::ErrorKind::BrokenPipe,
++                "MCP stdin is closed",
++            ))),
++        }
++    }
++
++    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
++        match self.get_mut().0.as_mut() {
++            Some(pipe) => Pin::new(pipe).poll_flush(cx),
++            None => Poll::Ready(Ok(())),
++        }
++    }
++
++    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
++        let this = self.get_mut();
++        match this.0.as_mut() {
++            Some(pipe) => ready!(Pin::new(pipe).poll_flush(cx))?,
++            None => return Poll::Ready(Ok(())),
++        }
++        drop(this.0.take());
++        Poll::Ready(Ok(()))
++    }
++}
++
++enum Direction {
++    ChildReads,
++    ChildWrites,
++}
++
++fn connected_pipe(
++    direction: Direction,
++    security: &PipeSecurity,
++) -> io::Result<(NamedPipeServer, File)> {
++    let name = format!(r"\\.\pipe\codex-mcp-{}", Uuid::new_v4().simple());
++    let mut options = ServerOptions::new();
++    options
++        .pipe_mode(PipeMode::Byte)
++        .first_pipe_instance(true)
++        .max_instances(1)
++        .reject_remote_clients(true);
++    let mut client = OpenOptions::new();
++    client.security_qos_flags(SECURITY_IDENTIFICATION | SECURITY_SQOS_PRESENT);
++    match direction {
++        Direction::ChildReads => {
++            options.access_inbound(false).access_outbound(true);
++            client.read(true);
++        }
++        Direction::ChildWrites => {
++            options.access_inbound(true).access_outbound(false);
++            client.write(true);
++        }
++    }
++    let mut attributes = SECURITY_ATTRIBUTES {
++        nLength: u32::try_from(size_of::<SECURITY_ATTRIBUTES>()).map_err(io::Error::other)?,
++        lpSecurityDescriptor: security.0,
++        bInheritHandle: 0,
++    };
++    // SAFETY: attributes and its owned descriptor stay live through CreateNamedPipeW.
++    // The kernel copies the descriptor; the returned pipe owns its separate handle.
++    let server = unsafe {
++        options.create_with_security_attributes_raw(&name, ptr::from_mut(&mut attributes).cast())
++    }?;
++    let child = client.open(&name)?;
++    // The child endpoint is already connected. Complete registration on the
++    // launcher's blocking thread before the child is allowed to execute.
++    tokio::runtime::Handle::current().block_on(server.connect())?;
++    Ok((server, child))
++}
++
++struct PipeSecurity(PSECURITY_DESCRIPTOR);
++
++impl PipeSecurity {
++    fn new() -> io::Result<Self> {
++        // Only the pipe owner and SYSTEM can open the single local instance.
++        let sddl: Vec<u16> = "D:P(A;;GA;;;SY)(A;;GA;;;OW)"
++            .encode_utf16()
++            .chain(std::iter::once(0))
++            .collect();
++        let mut descriptor = ptr::null_mut();
++        // SAFETY: sddl is NUL-terminated and descriptor is a valid writable out
++        // pointer. On success Windows transfers a LocalFree-owned allocation.
++        if unsafe {
++            ConvertStringSecurityDescriptorToSecurityDescriptorW(
++                sddl.as_ptr(),
++                SDDL_REVISION_1,
++                &mut descriptor,
++                ptr::null_mut(),
++            )
++        } == 0
++        {
++            return Err(io::Error::last_os_error());
++        }
++        Ok(Self(descriptor))
++    }
++}
++
++impl Drop for PipeSecurity {
++    fn drop(&mut self) {
++        // SAFETY: this is the sole owner of the successful SDDL conversion's
++        // allocation; no pipe creation call retains a pointer to it.
++        if !unsafe { LocalFree(self.0) }.is_null() {
++            tracing::warn!(
++                "Failed to release MCP pipe security descriptor: {}",
++                io::Error::last_os_error()
++            );
++        }
++    }
++}
+diff --git a/codex-rs/rmcp-client/src/local_stdio_io/windows_tests.rs b/codex-rs/rmcp-client/src/local_stdio_io/windows_tests.rs
+new file mode 100644
+index 0000000..fbb353e
+--- /dev/null
++++ b/codex-rs/rmcp-client/src/local_stdio_io/windows_tests.rs
+@@ -0,0 +1,72 @@
++use std::future::Future;
++use std::task::Context as TaskContext;
++use std::task::Waker;
++use std::time::Duration;
++
++use anyhow::Context;
++use anyhow::Result;
++use anyhow::ensure;
++use codex_utils_pty::Command;
++use rmcp::transport::Transport;
++use tokio::io::AsyncBufReadExt;
++use tokio::io::AsyncReadExt;
++use tokio::io::BufReader;
++
++use super::LocalStdioTransport;
++use crate::protocol_mode::McpProtocolMode;
++use crate::utils::create_env_for_mcp_server;
++
++#[test]
++fn idle_stdio_reads_leave_blocking_pool_available_for_config_io() -> Result<()> {
++    let server = codex_utils_cargo_bin::cargo_bin("test_stdio_server")?;
++    let runtime = tokio::runtime::Builder::new_multi_thread()
++        .worker_threads(1)
++        .max_blocking_threads(2)
++        .enable_all()
++        .build()?;
++
++    runtime.block_on(async {
++        for protocol in [McpProtocolMode::Legacy, McpProtocolMode::V20260728] {
++            let program = server.clone();
++            let env = create_env_for_mcp_server(None, &[])?;
++            let (mut transport, stderr) = tokio::task::spawn_blocking(move || {
++                let mut command = Command::new(program);
++                command.envs(&env);
++                LocalStdioTransport::spawn(command, "test_stdio_server".to_owned(), protocol)
++            })
++            .await??;
++            let mut stderr = BufReader::new(stderr.context("test server stderr was not piped")?);
++            let result: Result<()> = async {
++                let mut startup = String::new();
++                let received =
++                    tokio::time::timeout(Duration::from_secs(10), stderr.read_line(&mut startup))
++                        .await??;
++                ensure!(
++                    received > 0,
++                    "test server exited before its startup diagnostic"
++                );
++
++                // Poll both idle reads before enqueueing filesystem work. With
++                // blocking pipes these two reads occupy this runtime's entire pool.
++                let stdout_read = transport.receive();
++                tokio::pin!(stdout_read);
++                let mut context = TaskContext::from_waker(Waker::noop());
++                ensure!(stdout_read.as_mut().poll(&mut context).is_pending());
++                let mut byte = [0];
++                let stderr_read = stderr.read(&mut byte);
++                tokio::pin!(stderr_read);
++                ensure!(stderr_read.as_mut().poll(&mut context).is_pending());
++                tokio::time::timeout(Duration::from_secs(10), tokio::fs::metadata(&server))
++                    .await
++                    .context("idle MCP pipes exhausted the configuration I/O pool")??;
++                Ok(())
++            }
++            .await;
++
++            // Always release the fixture, including when the regression times out.
++            transport.close().await?;
++            result?;
++        }
++        Ok(())
++    })
++}

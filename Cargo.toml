@@ -1,0 +1,45 @@
+[package]
+name = "mcp-runtime-repair"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Version-aware Windows MCP stdio runtime repair"
+repository = "https://github.com/kltyton/windows-mcp-runtime-repair"
+
+[[bin]]
+name = "mcp-runtime-repair"
+path = "src/bin/repair.rs"
+
+[[bin]]
+name = "runtime-host"
+path = "src/bin/runtime_host.rs"
+
+[dependencies]
+anyhow = "=1.0.103"
+clap = { version = "=4.5.58", features = ["derive"] }
+csv = "=1.4.0"
+hex = "=0.4.3"
+reqwest = { version = "=0.12.28", default-features = false, features = ["blocking", "json", "rustls-tls", "system-proxy"] }
+quick-xml = "=0.39.4"
+semver = { version = "=1.0.27", features = ["serde"] }
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.149"
+sha2 = "=0.10.9"
+tempfile = "=3.27.0"
+zip = { version = "=9.0.0", default-features = false, features = ["deflate"] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "=0.62.2", features = ["Win32_Foundation", "Win32_System_Com", "Win32_System_Ole", "Win32_System_TaskScheduler", "Win32_System_Variant"] }
+windows-registry = "=0.6.1"
+windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_Storage_Packaging_Appx", "Win32_System_Threading", "Win32_System_Diagnostics_ToolHelp", "Win32_UI_WindowsAndMessaging"] }
+
+[profile.release]
+strip = "debuginfo"
+lto = "thin"
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"

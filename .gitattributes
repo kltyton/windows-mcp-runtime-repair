@@ -1,0 +1,4 @@
+patches/*.patch -text
+licenses/dependencies/sources/** -text
+licenses/dependencies/standards/** -text
+licenses/dependencies/declarations/** -text

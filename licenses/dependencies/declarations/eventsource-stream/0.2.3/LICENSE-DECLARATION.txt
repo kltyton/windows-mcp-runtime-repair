@@ -1,0 +1,4 @@
+Package: eventsource-stream
+Version: 0.2.3
+Declared license: MIT OR Apache-2.0
+Selected license: Apache-2.0

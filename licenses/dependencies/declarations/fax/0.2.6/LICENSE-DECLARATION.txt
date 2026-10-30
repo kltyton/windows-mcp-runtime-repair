@@ -1,0 +1,4 @@
+Package: fax
+Version: 0.2.6
+Declared license: MIT
+Selected license: MIT

@@ -1,0 +1,394 @@
+{
+  "schema_version": 1,
+  "packages": [
+    {
+      "name": "allocative",
+      "version": "0.3.6",
+      "declaredLicense": "Apache-2.0",
+      "sourceRelation": "pinned-upstream-license",
+      "files": [
+        {
+          "path": "sources/facebookexperimental/allocative/fc41670cf9cfebd86ba597925081577897112c51/LICENSE-APACHE",
+          "sourceUrl": "https://github.com/facebookexperimental/allocative/blob/fc41670cf9cfebd86ba597925081577897112c51/LICENSE-APACHE",
+          "pinnedCommit": "fc41670cf9cfebd86ba597925081577897112c51",
+          "sha256": "50e6751797c50dedd75ef1b8a0d9e42f5f8472e9fbce91f34718e9f97b0c780a",
+          "contentRelation": "complete-upstream-file"
+        },
+        {
+          "path": "sources/facebookexperimental/allocative/fc41670cf9cfebd86ba597925081577897112c51/LICENSE-MIT",
+          "sourceUrl": "https://github.com/facebookexperimental/allocative/blob/fc41670cf9cfebd86ba597925081577897112c51/LICENSE-MIT",
+          "pinnedCommit": "fc41670cf9cfebd86ba597925081577897112c51",
+          "sha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93",
+          "contentRelation": "complete-upstream-file"
+        }
+      ]
+    },
+    {
+      "name": "allocative_derive",
+      "version": "0.3.6",
+      "declaredLicense": "Apache-2.0",
+      "sourceRelation": "pinned-upstream-license",
+      "files": [
+        {
+          "path": "sources/facebookexperimental/allocative/fc41670cf9cfebd86ba597925081577897112c51/LICENSE-APACHE",
+          "sourceUrl": "https://github.com/facebookexperimental/allocative/blob/fc41670cf9cfebd86ba597925081577897112c51/LICENSE-APACHE",
+          "pinnedCommit": "fc41670cf9cfebd86ba597925081577897112c51",
+          "sha256": "50e6751797c50dedd75ef1b8a0d9e42f5f8472e9fbce91f34718e9f97b0c780a",
+          "contentRelation": "complete-upstream-file"
+        },
+        {
+          "path": "sources/facebookexperimental/allocative/fc41670cf9cfebd86ba597925081577897112c51/LICENSE-MIT",
+          "sourceUrl": "https://github.com/facebookexperimental/allocative/blob/fc41670cf9cfebd86ba597925081577897112c51/LICENSE-MIT",
+          "pinnedCommit": "fc41670cf9cfebd86ba597925081577897112c51",
+          "sha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93",
+          "contentRelation": "complete-upstream-file"
+        }
+      ]
+    },
+    {
+      "name": "display_container",
+      "version": "0.9.0",
+      "declaredLicense": "MIT OR Apache-2.0",
+      "sourceRelation": "pinned-upstream-license",
+      "files": [
+        {
+          "path": "sources/facebookincubator/gazebo/13efb6d415c4729178dfccc36fa9c87491f0813d/LICENSE-APACHE",
+          "sourceUrl": "https://github.com/facebookincubator/gazebo/blob/13efb6d415c4729178dfccc36fa9c87491f0813d/LICENSE-APACHE",
+          "pinnedCommit": "13efb6d415c4729178dfccc36fa9c87491f0813d",
+          "sha256": "50e6751797c50dedd75ef1b8a0d9e42f5f8472e9fbce91f34718e9f97b0c780a",
+          "contentRelation": "complete-upstream-file"
+        },
+        {
+          "path": "sources/facebookincubator/gazebo/13efb6d415c4729178dfccc36fa9c87491f0813d/LICENSE-MIT",
+          "sourceUrl": "https://github.com/facebookincubator/gazebo/blob/13efb6d415c4729178dfccc36fa9c87491f0813d/LICENSE-MIT",
+          "pinnedCommit": "13efb6d415c4729178dfccc36fa9c87491f0813d",
+          "sha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93",
+          "contentRelation": "complete-upstream-file"
+        }
+      ]
+    },
+    {
+      "name": "fxhash",
+      "version": "0.2.1",
+      "declaredLicense": "Apache-2.0/MIT",
+      "selectedLicense": "Apache-2.0",
+      "sourceRelation": "source-declared-standard-license",
+      "files": [
+        {
+          "path": "sources/cbreeden/fxhash/537570af68de22d2f4bbdd5bee5d6e07268e6f42/COPYRIGHT-NOTICE.txt",
+          "sourceUrl": "https://github.com/cbreeden/fxhash/blob/537570af68de22d2f4bbdd5bee5d6e07268e6f42/lib.rs",
+          "pinnedCommit": "537570af68de22d2f4bbdd5bee5d6e07268e6f42",
+          "sha256": "5d392ff1ac69a18c9beb41720ecbfd56f7792a1ec4321428e73757d4283f5a61",
+          "contentRelation": "leading-source-license-comment"
+        },
+        {
+          "path": "standards/apache/2.0/LICENSE.txt",
+          "sourceUrl": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+          "pinnedCommit": null,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "contentRelation": "standard-license-text"
+        }
+      ]
+    },
+    {
+      "name": "lock_free_hashtable",
+      "version": "0.1.4",
+      "declaredLicense": "MIT OR Apache-2.0",
+      "sourceRelation": "pinned-upstream-license",
+      "files": [
+        {
+          "path": "sources/meta/buck2/b2532a07d55121ce2e3aa7d2a8cf36fe5f0a1f0d/LICENSE-APACHE",
+          "sourceUrl": "https://github.com/meta/buck2/blob/b2532a07d55121ce2e3aa7d2a8cf36fe5f0a1f0d/LICENSE-APACHE",
+          "pinnedCommit": "b2532a07d55121ce2e3aa7d2a8cf36fe5f0a1f0d",
+          "sha256": "50e6751797c50dedd75ef1b8a0d9e42f5f8472e9fbce91f34718e9f97b0c780a",
+          "contentRelation": "complete-upstream-file"
+        },
+        {
+          "path": "sources/meta/buck2/b2532a07d55121ce2e3aa7d2a8cf36fe5f0a1f0d/LICENSE-MIT",
+          "sourceUrl": "https://github.com/meta/buck2/blob/b2532a07d55121ce2e3aa7d2a8cf36fe5f0a1f0d/LICENSE-MIT",
+          "pinnedCommit": "b2532a07d55121ce2e3aa7d2a8cf36fe5f0a1f0d",
+          "sha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93",
+          "contentRelation": "complete-upstream-file"
+        },
+        {
+          "path": "sources/meta/buck2/b2532a07d55121ce2e3aa7d2a8cf36fe5f0a1f0d/NOTICE",
+          "sourceUrl": "https://github.com/meta/buck2/blob/b2532a07d55121ce2e3aa7d2a8cf36fe5f0a1f0d/NOTICE",
+          "pinnedCommit": "b2532a07d55121ce2e3aa7d2a8cf36fe5f0a1f0d",
+          "sha256": "b3355ad324483539ba40a8ad85bcaa5c03c19b6b54831e3f7f3b67f56ac4982e",
+          "contentRelation": "complete-upstream-file"
+        }
+      ]
+    },
+    {
+      "name": "mxc-sdk",
+      "version": "1.0.0",
+      "declaredLicense": "MIT",
+      "sourceRelation": "pinned-upstream-license",
+      "files": [
+        {
+          "path": "sources/microsoft/mxc/b21120168d70befe12356411423266bfef168446/LICENSE.md",
+          "sourceUrl": "https://github.com/microsoft/mxc/blob/b21120168d70befe12356411423266bfef168446/LICENSE.md",
+          "pinnedCommit": "b21120168d70befe12356411423266bfef168446",
+          "sha256": "d9a1b1e30d633d5732ea18e3cba9538d293ebc53e1a9e4e96ab739e0c5c4f1cb",
+          "contentRelation": "complete-upstream-file"
+        }
+      ]
+    },
+    {
+      "name": "pagable_derive",
+      "version": "0.4.1",
+      "declaredLicense": "Apache-2.0",
+      "sourceRelation": "pinned-upstream-license",
+      "files": [
+        {
+          "path": "sources/meta/starlark-rust/8978f3cd91b2908e1e61f6b58f84293097abf8f1/LICENSE",
+          "sourceUrl": "https://github.com/meta/starlark-rust/blob/8978f3cd91b2908e1e61f6b58f84293097abf8f1/LICENSE",
+          "pinnedCommit": "8978f3cd91b2908e1e61f6b58f84293097abf8f1",
+          "sha256": "50e6751797c50dedd75ef1b8a0d9e42f5f8472e9fbce91f34718e9f97b0c780a",
+          "contentRelation": "complete-upstream-file"
+        }
+      ]
+    },
+    {
+      "name": "static_interner",
+      "version": "0.1.2",
+      "declaredLicense": "MIT OR Apache-2.0",
+      "sourceRelation": "pinned-upstream-license",
+      "files": [
+        {
+          "path": "sources/meta/buck2/3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0/LICENSE-APACHE",
+          "sourceUrl": "https://github.com/meta/buck2/blob/3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0/LICENSE-APACHE",
+          "pinnedCommit": "3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0",
+          "sha256": "50e6751797c50dedd75ef1b8a0d9e42f5f8472e9fbce91f34718e9f97b0c780a",
+          "contentRelation": "complete-upstream-file"
+        },
+        {
+          "path": "sources/meta/buck2/3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0/LICENSE-MIT",
+          "sourceUrl": "https://github.com/meta/buck2/blob/3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0/LICENSE-MIT",
+          "pinnedCommit": "3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0",
+          "sha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93",
+          "contentRelation": "complete-upstream-file"
+        },
+        {
+          "path": "sources/meta/buck2/3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0/NOTICE",
+          "sourceUrl": "https://github.com/meta/buck2/blob/3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0/NOTICE",
+          "pinnedCommit": "3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0",
+          "sha256": "b3355ad324483539ba40a8ad85bcaa5c03c19b6b54831e3f7f3b67f56ac4982e",
+          "contentRelation": "complete-upstream-file"
+        }
+      ]
+    },
+    {
+      "name": "strong_hash",
+      "version": "0.1.0",
+      "declaredLicense": "MIT OR Apache-2.0",
+      "sourceRelation": "pinned-upstream-license",
+      "files": [
+        {
+          "path": "sources/meta/buck2/3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0/LICENSE-APACHE",
+          "sourceUrl": "https://github.com/meta/buck2/blob/3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0/LICENSE-APACHE",
+          "pinnedCommit": "3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0",
+          "sha256": "50e6751797c50dedd75ef1b8a0d9e42f5f8472e9fbce91f34718e9f97b0c780a",
+          "contentRelation": "complete-upstream-file"
+        },
+        {
+          "path": "sources/meta/buck2/3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0/LICENSE-MIT",
+          "sourceUrl": "https://github.com/meta/buck2/blob/3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0/LICENSE-MIT",
+          "pinnedCommit": "3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0",
+          "sha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93",
+          "contentRelation": "complete-upstream-file"
+        },
+        {
+          "path": "sources/meta/buck2/3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0/NOTICE",
+          "sourceUrl": "https://github.com/meta/buck2/blob/3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0/NOTICE",
+          "pinnedCommit": "3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0",
+          "sha256": "b3355ad324483539ba40a8ad85bcaa5c03c19b6b54831e3f7f3b67f56ac4982e",
+          "contentRelation": "complete-upstream-file"
+        }
+      ]
+    },
+    {
+      "name": "strong_hash_derive",
+      "version": "0.1.0",
+      "declaredLicense": "MIT OR Apache-2.0",
+      "sourceRelation": "pinned-upstream-license",
+      "files": [
+        {
+          "path": "sources/meta/buck2/3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0/LICENSE-APACHE",
+          "sourceUrl": "https://github.com/meta/buck2/blob/3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0/LICENSE-APACHE",
+          "pinnedCommit": "3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0",
+          "sha256": "50e6751797c50dedd75ef1b8a0d9e42f5f8472e9fbce91f34718e9f97b0c780a",
+          "contentRelation": "complete-upstream-file"
+        },
+        {
+          "path": "sources/meta/buck2/3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0/LICENSE-MIT",
+          "sourceUrl": "https://github.com/meta/buck2/blob/3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0/LICENSE-MIT",
+          "pinnedCommit": "3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0",
+          "sha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93",
+          "contentRelation": "complete-upstream-file"
+        },
+        {
+          "path": "sources/meta/buck2/3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0/NOTICE",
+          "sourceUrl": "https://github.com/meta/buck2/blob/3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0/NOTICE",
+          "pinnedCommit": "3f054b09fb3ddf6e96c8c38f1f21e9420b4215f0",
+          "sha256": "b3355ad324483539ba40a8ad85bcaa5c03c19b6b54831e3f7f3b67f56ac4982e",
+          "contentRelation": "complete-upstream-file"
+        }
+      ]
+    },
+    {
+      "name": "zune-core",
+      "version": "0.4.12",
+      "declaredLicense": "MIT OR Apache-2.0 OR Zlib",
+      "selectedLicense": "Zlib",
+      "sourceRelation": "pinned-upstream-license",
+      "files": [
+        {
+          "path": "sources/etemesi254/zune-image/f8fbb123d5ed04441e8324a555bfcda0cb1bd28f/LICENSE-ZLIB",
+          "sourceUrl": "https://github.com/etemesi254/zune-image/blob/f8fbb123d5ed04441e8324a555bfcda0cb1bd28f/LICENSE-ZLIB",
+          "pinnedCommit": "f8fbb123d5ed04441e8324a555bfcda0cb1bd28f",
+          "sha256": "7fa429541e55b1509909e058f2d21a37467e4958ec713b357f6e0cf9dc4ee352",
+          "contentRelation": "complete-upstream-file"
+        }
+      ]
+    },
+    {
+      "name": "debugserver-types",
+      "version": "0.5.0",
+      "declaredLicense": "MIT",
+      "selectedLicense": "MIT",
+      "sourceRelation": "manifest-declared-standard-license",
+      "files": [
+        {
+          "path": "declarations/debugserver-types/0.5.0/LICENSE-DECLARATION.txt",
+          "sourceUrl": "https://docs.rs/crate/debugserver-types/0.5.0/source/Cargo.toml",
+          "pinnedCommit": null,
+          "sha256": "aae1a1943c06d345781c9c59d920e82a84af63198ef3cc2a7ba876bf96f6583d",
+          "contentRelation": "published-manifest-license-identifiers"
+        },
+        {
+          "path": "standards/mit/LICENSE.txt",
+          "sourceUrl": "https://github.com/spdx/license-list-data/blob/main/text/MIT.txt",
+          "pinnedCommit": null,
+          "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+          "contentRelation": "standard-license-text"
+        }
+      ]
+    },
+    {
+      "name": "eventsource-stream",
+      "version": "0.2.3",
+      "declaredLicense": "MIT OR Apache-2.0",
+      "selectedLicense": "Apache-2.0",
+      "sourceRelation": "manifest-declared-standard-license",
+      "files": [
+        {
+          "path": "declarations/eventsource-stream/0.2.3/LICENSE-DECLARATION.txt",
+          "sourceUrl": "https://docs.rs/crate/eventsource-stream/0.2.3/source/Cargo.toml",
+          "pinnedCommit": null,
+          "sha256": "da8915e48c72fa3b533963c49836a0d951b41112790b96e350acd7926dc6073a",
+          "contentRelation": "published-manifest-license-identifiers"
+        },
+        {
+          "path": "standards/apache/2.0/LICENSE.txt",
+          "sourceUrl": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+          "pinnedCommit": null,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "contentRelation": "standard-license-text"
+        }
+      ]
+    },
+    {
+      "name": "fax",
+      "version": "0.2.6",
+      "declaredLicense": "MIT",
+      "selectedLicense": "MIT",
+      "sourceRelation": "manifest-declared-standard-license",
+      "files": [
+        {
+          "path": "declarations/fax/0.2.6/LICENSE-DECLARATION.txt",
+          "sourceUrl": "https://docs.rs/crate/fax/0.2.6/source/Cargo.toml",
+          "pinnedCommit": null,
+          "sha256": "e6eafb4aadb396cc7131206478a8fc794551b6f377351540cc51aaaf2b64096f",
+          "contentRelation": "published-manifest-license-identifiers"
+        },
+        {
+          "path": "standards/mit/LICENSE.txt",
+          "sourceUrl": "https://github.com/spdx/license-list-data/blob/main/text/MIT.txt",
+          "pinnedCommit": null,
+          "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+          "contentRelation": "standard-license-text"
+        }
+      ]
+    },
+    {
+      "name": "fax_derive",
+      "version": "0.2.0",
+      "declaredLicense": "MIT",
+      "selectedLicense": "MIT",
+      "sourceRelation": "manifest-declared-standard-license",
+      "files": [
+        {
+          "path": "declarations/fax_derive/0.2.0/LICENSE-DECLARATION.txt",
+          "sourceUrl": "https://docs.rs/crate/fax_derive/0.2.0/source/Cargo.toml",
+          "pinnedCommit": null,
+          "sha256": "8e859ede161b83db8758b3bcb751d3ba8866ca666a7b7bd2bf163e0aef961013",
+          "contentRelation": "published-manifest-license-identifiers"
+        },
+        {
+          "path": "standards/mit/LICENSE.txt",
+          "sourceUrl": "https://github.com/spdx/license-list-data/blob/main/text/MIT.txt",
+          "pinnedCommit": null,
+          "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+          "contentRelation": "standard-license-text"
+        }
+      ]
+    },
+    {
+      "name": "io_tee",
+      "version": "0.1.1",
+      "declaredLicense": "MIT OR Apache-2.0",
+      "selectedLicense": "Apache-2.0",
+      "sourceRelation": "manifest-declared-standard-license",
+      "files": [
+        {
+          "path": "declarations/io_tee/0.1.1/LICENSE-DECLARATION.txt",
+          "sourceUrl": "https://docs.rs/crate/io_tee/0.1.1/source/Cargo.toml",
+          "pinnedCommit": null,
+          "sha256": "3f889494bafa04a72e6df9f357e6e358ca386f96d3e0dd8b47769c4a58f77da2",
+          "contentRelation": "published-manifest-license-identifiers"
+        },
+        {
+          "path": "standards/apache/2.0/LICENSE.txt",
+          "sourceUrl": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+          "pinnedCommit": null,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "contentRelation": "standard-license-text"
+        }
+      ]
+    },
+    {
+      "name": "winsplit",
+      "version": "0.1.0",
+      "declaredLicense": "MIT OR Apache-2.0",
+      "selectedLicense": "Apache-2.0",
+      "sourceRelation": "manifest-declared-standard-license",
+      "files": [
+        {
+          "path": "declarations/winsplit/0.1.0/LICENSE-DECLARATION.txt",
+          "sourceUrl": "https://docs.rs/crate/winsplit/0.1.0/source/Cargo.toml",
+          "pinnedCommit": null,
+          "sha256": "73906b8cb4807758bea75c3cfdd103316f358c58499bb37feac508003f83841f",
+          "contentRelation": "published-manifest-license-identifiers"
+        },
+        {
+          "path": "standards/apache/2.0/LICENSE.txt",
+          "sourceUrl": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+          "pinnedCommit": null,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "contentRelation": "standard-license-text"
+        }
+      ]
+    }
+  ]
+}

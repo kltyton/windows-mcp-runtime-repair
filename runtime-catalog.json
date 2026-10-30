@@ -1,0 +1,20 @@
+{
+  "runtimes": [
+    {
+      "backend_version": "0.165.0-alpha.1.2",
+      "source_commit": "720fec862a608ae1e5878d1eecb04fb93192e93c",
+      "archive_url": "https://github.com/kltyton/windows-mcp-runtime-repair/releases/download/backend-v0.165.0-alpha.1.2/windows-runtime-0.165.0-alpha.1.2.zip",
+      "archive_sha256": "435bff18c4f6a97de87fb598c9d65924108bd4b63e195dbe5c83695146ee6cce",
+      "executable_sha256": "2b60bfe379866c02e163d27a6bf13e24f8da8b03e2aee1b9e58308e606428087"
+    },
+    {
+      "backend_version": "0.163.0-alpha.10.2",
+      "source_commit": "4ebc485ca321243727539187169425fcf972f2c4",
+      "archive_url": "https://github.com/kltyton/windows-mcp-runtime-repair/releases/download/backend-v0.163.0-alpha.10.2/windows-runtime-0.163.0-alpha.10.2.zip",
+      "archive_sha256": "79c7c152a4a7ef9b910f02b475b576de1ecacd3be1ed574e6d55ce52ffbf7c5b",
+      "executable_sha256": "9c272224cbc49b0056f04d2276d93c365e346b0fd2b381bdb88fe42acc77d0e2"
+    }
+  ],
+  "desktop_package_version": "",
+  "schema_version": 1
+}
